@@ -2,9 +2,13 @@
 package come.watch.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import come.watch.dto.request.DayAggQueryDTO;
 import come.watch.repository.RumDailyPo;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
 @Mapper
 public interface RumDailyAggMapper extends BaseMapper<RumDailyPo> {
@@ -25,4 +29,6 @@ public interface RumDailyAggMapper extends BaseMapper<RumDailyPo> {
             "  p95 = VALUES(p95),\n" +
             "  good_rate = VALUES(good_rate)")
     int upsert(RumDailyPo agg);
+
+    IPage<RumDailyPo> selectPageByParam(Page<RumDailyPo> page, @Param("agg") DayAggQueryDTO agg);
 }

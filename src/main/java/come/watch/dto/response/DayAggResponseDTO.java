@@ -1,36 +1,31 @@
-package come.watch.repository;
+package come.watch.dto.response;
 
-import java.io.Serializable;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.fasterxml.jackson.annotation.JsonFormat;
+import lombok.Data;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Date;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
-import lombok.Data;
-
-/**
- * RUM 日聚合表（用于榜单/对比发布）
- * @TableName rum_daily_agg
- */
-@TableName(value ="rum_daily_agg")
 @Data
-public class RumDailyPo implements Serializable {
+public class DayAggResponseDTO {
     /**
      * 主键
      */
-    @TableId(type = IdType.AUTO)
+    @TableId
     private Long id;
 
     /**
      * 创建时间
      */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "Asia/Beijing")
     private Date createTime;
 
     /**
      * 更新时间
      */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "Asia/Beijing")
     private Date updateTime;
 
     /**

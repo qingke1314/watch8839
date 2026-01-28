@@ -43,4 +43,6 @@ public class RumPo {
 
     private String sessionId;
     private String pageId;
+
+    private String dimKey;
 }

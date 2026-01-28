@@ -2,6 +2,8 @@ package come.watch.common;
 
 import come.watch.repository.RumPo;
 
+import java.util.Arrays;
+
 public class RumValidator {
 
     private static final int MAX_ROUTE_KEY_LEN = 200;
@@ -14,24 +16,9 @@ public class RumValidator {
      */
     public static String validate(RumPo dto) {
         // metric 校验：只能是 1(LCP)/2(INP)/3(CL)
-        if (dto.getMetric() == null || !MetricType.fromValue(dto.getMetric()).equals(MetricType.LCP) && !MetricType.fromValue(dto.getMetric()).equals(MetricType.INP) && !MetricType.fromValue(dto.getMetric()).equals(MetricType.CL)) {
+        boolean validMetric = Arrays.stream(Metric.values()).map(Metric::getCode).anyMatch(code -> code.equals(dto.getMetric()));
+        if (dto.getMetric() == null || !validMetric) {
             return "Invalid metric";
-        }
-
-        // value 校验：LCP/INP 0~120000ms，CL 0~10
-        if (dto.getValue() != null) {
-            MetricType type = MetricType.fromValue(dto.getMetric());
-            if (type == MetricType.CL) {
-                // CLS 范围 0~10
-                if (dto.getValue() < 0 || dto.getValue() > 10) {
-                    return "Invalid cls value";
-                }
-            } else {
-                // LCP/INP 范围 0~120000ms
-                if (dto.getValue() < 0 || dto.getValue() > 120000) {
-                    return "Invalid performance value";
-                }
-            }
         }
 
         // route_key 校验：非空且长度合理

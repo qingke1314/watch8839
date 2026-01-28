@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="come.watch.mapper.RumDailyAggMapper">
+
+    <select id="selectPageByParam" resultType="come.watch.repository.RumDailyPo">
+        SELECT
+            *
+        FROM rum_daily_agg as r
+        <where>
+            r.deleted = 0
+            <if test="agg.env != null">
+                AND r.env = #{agg.env}
+            </if>
+            <if test="agg.metric != null">
+                AND r.metric = #{agg.metric}
+            </if>
+            <if test="agg.routeKey != null">
+                AND r.route_key = #{agg.routeKey}
+            </if>
+            <if test="agg.releaseVer != null">
+                AND r.release_ver = #{agg.releaseVer}
+            </if>
+            <if test="agg.startDate != null">
+                AND r.day &gt;= #{agg.startDate}
+            </if>
+            <if test="agg.endDate != null">
+                AND r.day &lt;= #{agg.endDate}
+            </if>
+        </where>
+        order by r.day
+    </select>
+</mapper>

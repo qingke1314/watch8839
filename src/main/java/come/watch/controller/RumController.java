@@ -1,7 +1,13 @@
 package come.watch.controller;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import come.watch.common.CommonResponseDTO;
+import come.watch.common.Metric;
 import come.watch.common.RumValidator;
+import come.watch.dto.request.DayAggQueryDTO;
+import come.watch.dto.response.DayAggResponseDTO;
+import come.watch.dto.response.OverviewDictDTO;
 import come.watch.repository.RumPo;
 import come.watch.service.RumService;
 import lombok.RequiredArgsConstructor;
@@ -11,10 +17,15 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @RestController
 @RequiredArgsConstructor
+@RequestMapping("/rum")
 public class RumController {
 
   /**
@@ -55,12 +66,6 @@ public class RumController {
       dto = om.readValue(body, RumPo.class);
     } catch (Exception e) {
       log.warn("rum: json parse error, ip={}, error={}", req.getRemoteAddr(), e.getMessage());
-      return;
-    }
-
-    // 3. 业务字段校验
-    if (dto.getMetricId() == null || dto.getMetricId().isEmpty()) {
-      log.warn("rum: missing metricId, ip={}", req.getRemoteAddr());
       return;
     }
 
@@ -105,11 +110,8 @@ public class RumController {
     }
 
     // 批量校验：过滤无效数据
-    java.util.List<RumPo> validDtos = new java.util.ArrayList<>();
+    List<RumPo> validDtos = new ArrayList<>();
     for (RumPo dto : dtos) {
-      if (dto.getMetricId() == null || dto.getMetricId().isEmpty()) {
-        continue;
-      }
       String error = RumValidator.validate(dto);
       if (error == null) {
         validDtos.add(dto);
@@ -123,5 +125,21 @@ public class RumController {
 
     service.collectBatch(validDtos.toArray(new RumPo[0]), req.getHeader("User-Agent"), req);
     log.info("rumBatch: success, ip={}, total={}, valid={}", req.getRemoteAddr(), dtos.length, validDtos.size());
+  }
+
+    /**
+     * 获取日聚合 数据
+     */
+  @PostMapping("/dayAgg")
+  public CommonResponseDTO<DayAggResponseDTO> dayAgg(@RequestBody DayAggQueryDTO query,
+                                                     @RequestParam Long current, @RequestParam Long pageSize) {
+      IPage<DayAggResponseDTO> page = service.dayAgg(query, current, pageSize);
+      return CommonResponseDTO.page(page.getRecords(), page.getPages(), page.getTotal());
+  }
+
+  @PostMapping("/getDict")
+  public CommonResponseDTO<OverviewDictDTO> metricList() {
+      OverviewDictDTO dict = service.getDict();
+      return CommonResponseDTO.ok(dict);
   }
 }
