@@ -14,11 +14,11 @@ import org.apache.ibatis.annotations.Param;
 public interface RumDailyAggMapper extends BaseMapper<RumDailyPo> {
     @Insert("INSERT INTO rum_daily_agg\n" +
             "  (create_time, update_time, deleted,\n" +
-            "   day, env, metric, route_key, release_ver,\n" +
+            "   day, env, metric, route_key, release_ver, dim_key,\n" +
             "   cnt, p50, p75, p95, good_rate)\n" +
             "VALUES\n" +
             "  (NOW(3), NOW(3), 0,\n" +
-            "   #{day}, #{env}, #{metric}, #{routeKey}, #{releaseVer},\n" +
+            "   #{day}, #{env}, #{metric}, #{routeKey}, #{releaseVer}, #{dimKey},\n" +
             "   #{cnt}, #{p50}, #{p75}, #{p95}, #{goodRate})\n" +
             "ON DUPLICATE KEY UPDATE\n" +
             "  update_time = NOW(3),\n" +

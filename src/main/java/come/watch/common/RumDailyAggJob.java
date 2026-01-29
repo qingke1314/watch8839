@@ -26,9 +26,9 @@ import java.util.Map;
  * RUM 每日聚合定时任务
  * <p>
  * 功能说明：
- * 1. 每天凌晨 00:10 执行，聚合昨天的明细数据
- * 2. 先按 (pageId, sessionId) 去重，同一页面会话只保留 value 最大的记录
- * 3. 再按 (env, metric, routeKey, releaseVer) 分组，计算 P50/P75/P95 和 good 占比
+ * 1. 每天凌晨 00:10 执行，聚合近 1 天明细数据
+ * 2. 先按 (day, env, metric, routeKey, releaseVer, dimKey, pageId, sessionId) 去重，同一分组只保留 value 最大的记录
+ * 3. 再按 (day, env, metric, routeKey, releaseVer, dimKey) 分组，计算 P50/P75/P95 和 good 占比
  * 4. 结果写入 rum_daily_agg 表，用于榜单和版本对比展示
  * <p>
  * 聚合维度说明：
@@ -56,26 +56,23 @@ public class RumDailyAggJob {
      */
     @Scheduled(cron = "0 10 0 * * ?")
     public void run() {
-        // 1. 确定统计日期：昨天
-        LocalDate day = LocalDate.now().minusDays(1);
-
-        // 确定时间范围：[昨天 00:00:00, 今天 00:00:00)
+        // 1) 统计窗口：昨天 00:00:00 ~ 今天 00:00:00 (左闭右开)
+        LocalDate day = LocalDate.now(); //.minusDays(1);
         LocalDateTime start = day.atStartOfDay();
         LocalDateTime end = day.plusDays(1).atStartOfDay();
 
-        // 2) 查询明细数据（Phase1 简化：一次性拉取；数据量大时需改成分页）
-        // 过滤条件：
-        //   - create_time >= start AND create_time < end 限定日期
-        //   - deleted = 0 排除软删数据
-        //   - metric/routeKey/releaseVer/env 非空
+        // 2) 拉取原始明细
+        // 过滤条件对齐 SQL：
+        // - create_time 在统计窗口内
+        // - deleted = 0
+        // - value/page_id/session_id 不为空
         List<RumPo> rows = eventMapper.selectList(new LambdaQueryWrapper<RumPo>()
                 .ge(RumPo::getCreateTime, start)
                 .lt(RumPo::getCreateTime, end)
                 .eq(RumPo::getDeleted, 0)
-                .isNotNull(RumPo::getMetric)
-                .isNotNull(RumPo::getRouteKey)
-                .isNotNull(RumPo::getReleaseVer)
-                .isNotNull(RumPo::getEnv)
+                .isNotNull(RumPo::getValue)
+                .isNotNull(RumPo::getPageId)
+                .isNotNull(RumPo::getSessionId)
         );
 
         if (rows.isEmpty()) {
@@ -83,76 +80,64 @@ public class RumDailyAggJob {
             return;
         }
 
-        // 3) 明细去重：同一会话/同一页面视图/同一指标/同一路由 只保留一条
-        // 说明：
-        // - 前端一个 pageId 代表“单次页面加载”，期间可能多次 flush 上报
-        // - 同一 pageId 下不同 routeKey（SPA 路由切换）不能互相覆盖
-        // - LCP/INP/CLS 都会在生命周期内多次上报，因此去重维度必须包含 metric
-        // 去重维度：(sessionId, pageId, metric, routeKey)
-        // 选择策略：优先取 createTime 最新的一条；若时间相同/缺失，取 value 更大的（更贴近最终/最差体验）
-        Map<String, RumPo> dedup = new HashMap<>(rows.size() * 2);
+        // 3) 去重：同一 (day, env, metric, routeKey, releaseVer, dimKey, pageId, sessionId)
+        // 保留 value 最大的一条，同时保留 rating 最大值（与 SQL 的 MAX(value)/MAX(rating) 对齐）
+        Map<DedupKey, DedupValue> dedup = new HashMap<>(rows.size() * 2);
         for (RumPo e : rows) {
-            if (e.getPageId() == null || e.getSessionId() == null || e.getMetric() == null || e.getRouteKey() == null) {
+            // 缺少 createTime 无法落日，直接跳过
+            if (e.getCreateTime() == null) {
                 continue;
             }
-            String k = e.getSessionId() + "|" + e.getPageId() + "|" + e.getMetric() + "|" + e.getRouteKey();
-            RumPo old = dedup.get(k);
+            LocalDate rowDay = e.getCreateTime().toLocalDate();
+            String dimKey = e.getDimKey() == null ? "" : e.getDimKey();
+            // 注意 dimKey 空值归一化为 ""，保持分组一致
+            DedupKey key = new DedupKey(rowDay, e.getEnv(), e.getMetric(), e.getRouteKey(), e.getReleaseVer(), dimKey, e.getPageId(), e.getSessionId());
+            DedupValue old = dedup.get(key);
             if (old == null) {
-                dedup.put(k, e);
+                dedup.put(key, new DedupValue(e.getValue(), e.getRating()));
                 continue;
             }
-
-            // 先比时间（越晚越优先）
-            LocalDateTime nt = e.getCreateTime();
-            LocalDateTime ot = old.getCreateTime();
-            if (nt != null && ot != null) {
-                if (nt.isAfter(ot)) {
-                    dedup.put(k, e);
-                }
-                continue;
+            // value 取最大值
+            if (e.getValue() != null && (old.value == null || e.getValue() > old.value)) {
+                old.value = e.getValue();
             }
-            if (nt != null && ot == null) {
-                dedup.put(k, e);
-                continue;
-            }
-
-            // 再比 value（越大越优先）
-            Double nv = e.getValue();
-            Double ov = old.getValue();
-            if (nv != null && ov != null && nv > ov) {
-                dedup.put(k, e);
+            // rating 取最大值
+            if (e.getRating() != null && (old.rating == null || e.getRating() > old.rating)) {
+                old.rating = e.getRating();
             }
         }
 
-        // 4) 按 (env, metric, routeKey, releaseVer) 分组统计
-        // - valuesMap: 收集每个分组的 value 列表，用于计算百分位
-        // - ratingCntMap: 统计 good 次数和总次数，用于计算 goodRate
+        // 4) 聚合分组：(day, env, metric, routeKey, releaseVer, dimKey)
+        // valuesMap: 收集每组 value 列表
+        // ratingCntMap: 统计 good/total
         Map<GroupKey, List<Double>> valuesMap = new HashMap<>();
-        Map<GroupKey, int[]> ratingCntMap = new HashMap<>(); // int[0]=good次数, int[1]=总次数
+        Map<GroupKey, int[]> ratingCntMap = new HashMap<>();
 
-        for (RumPo e : dedup.values()) {
-            if (e.getValue() == null) continue;
+        for (Map.Entry<DedupKey, DedupValue> entry : dedup.entrySet()) {
+            DedupKey k = entry.getKey();
+            DedupValue v = entry.getValue();
+            if (v.value == null) {
+                continue;
+            }
 
-            // 生成分组 key
-            GroupKey g = new GroupKey(e.getEnv(), e.getMetric(), e.getRouteKey(), e.getReleaseVer());
+            GroupKey g = new GroupKey(k.day, k.env, k.metric, k.routeKey, k.releaseVer, k.dimKey);
+            // 收集 value 以计算百分位
+            valuesMap.computeIfAbsent(g, x -> new ArrayList<>()).add(v.value);
 
-            // 收集 value
-            valuesMap.computeIfAbsent(g, x -> new ArrayList<>()).add(e.getValue());
-
-            // 统计 rating
             int[] rt = ratingCntMap.computeIfAbsent(g, x -> new int[2]);
-            rt[1]++; // total++
-            // rating=0 表示 good（如 INP <= 200ms），这里做简单判断
-            if (e.getRating() != null && e.getRating() == 0) rt[0]++; // good++
+            rt[1]++;
+            // rating=0 代表 good
+            if (v.rating != null && v.rating == 0) {
+                rt[0]++;
+            }
         }
 
-        // 5) 计算百分位并写入聚合表（upsert）
+        // 5) 百分位/占比计算并写入聚合表
         int written = 0;
         for (Map.Entry<GroupKey, List<Double>> entry : valuesMap.entrySet()) {
             GroupKey g = entry.getKey();
             List<Double> vals = entry.getValue();
-
-            // 排序后才能计算百分位
+            // 百分位依赖排序
             vals.sort(Double::compareTo);
 
             int n = vals.size();
@@ -160,18 +145,17 @@ public class RumDailyAggJob {
             double p75 = percentile(vals, 0.75);
             double p95 = percentile(vals, 0.95);
 
-            // 计算 good 占比
             int[] rt = ratingCntMap.getOrDefault(g, new int[]{0, n});
             BigDecimal goodRate = (rt[1] == 0) ? null :
                     BigDecimal.valueOf((double) rt[0] / rt[1]).setScale(4, RoundingMode.HALF_UP);
 
-            // 构建聚合记录
             RumDailyPo agg = new RumDailyPo();
-            agg.setDay(day);
+            agg.setDay(g.day);
             agg.setEnv(g.env);
             agg.setMetric(g.metric);
             agg.setRouteKey(g.routeKey);
             agg.setReleaseVer(g.releaseVer);
+            agg.setDimKey(g.dimKey);
             agg.setCnt(n);
             agg.setP50(p50);
             agg.setP75(p75);
@@ -179,12 +163,12 @@ public class RumDailyAggJob {
             agg.setGoodRate(goodRate);
             agg.setDeleted(0);
 
-            // 写入聚合表（存在则更新，不存在则插入）
+            // upsert: 主键/唯一键冲突时更新统计值
             aggMapper.upsert(agg);
             written++;
         }
 
-        log.info("RUM agg done. day={}, groups={}, rawRows={}, dedupRows={}", day, written, rows.size(), dedup.size());
+        log.info("RUM agg done. start={}, end={}, groups={}, rawRows={}, dedupRows={}", start, end, written, rows.size(), dedup.size());
     }
 
     /**
@@ -212,17 +196,51 @@ public class RumDailyAggJob {
     }
 
     /**
+     * 去重 Key
+     * <p>
+     * 与 SQL dedup 分组一致：
+     * (day, env, metric, routeKey, releaseVer, dimKey, pageId, sessionId)
+     */
+    @AllArgsConstructor
+    @EqualsAndHashCode
+    @Data
+    static class DedupKey {
+        LocalDate day;
+        String env;
+        Integer metric;
+        String routeKey;
+        String releaseVer;
+        String dimKey;
+        String pageId;
+        String sessionId;
+    }
+
+    /**
+     * 去重后的保留字段
+     * value/rating 均取 MAX 结果
+     */
+    @AllArgsConstructor
+    @Data
+    static class DedupValue {
+        Double value;
+        Integer rating;
+    }
+
+    /**
      * 聚合分组 Key
      * <p>
-     * 用于按 [env, metric, routeKey, releaseVer] 维度聚合数据
+     * 与 SQL picked 分组一致：
+     * (day, env, metric, routeKey, releaseVer, dimKey)
      */
     @AllArgsConstructor
     @EqualsAndHashCode
     @Data
     static class GroupKey {
+        LocalDate day;
         String env;
         Integer metric;
         String routeKey;
         String releaseVer;
+        String dimKey;
     }
 }
