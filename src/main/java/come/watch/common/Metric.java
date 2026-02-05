@@ -10,7 +10,8 @@ public enum Metric {
     API_TIMING(4, "接口请求时间"),
     RES_DUR_SUM(5, "资源加载时间总和"),
     RES_SIZE_SUM(6, "资源加载大小总和"),
-    RES_CNT(7, "资源加载数量");
+    RES_CNT(7, "资源加载数量"),
+    FCP(8, "首次内容绘制FCP");
 
 
     private final int code;
