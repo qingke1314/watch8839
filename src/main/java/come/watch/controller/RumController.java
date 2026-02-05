@@ -18,9 +18,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.validation.Valid;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -29,6 +31,7 @@ import java.util.Map;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
+@Validated
 @RequestMapping("/rum")
 public class RumController {
 
@@ -137,7 +140,7 @@ public class RumController {
      * 获取日聚合 数据
      */
   @PostMapping("/dayAgg")
-  public CommonResponseDTO<DayAggResponseDTO> dayAgg(@RequestBody DayAggQueryDTO query,
+  public CommonResponseDTO<DayAggResponseDTO> dayAgg(@Valid @RequestBody DayAggQueryDTO query,
                                                      @RequestParam Long current, @RequestParam Long pageSize) {
       IPage<DayAggResponseDTO> page = service.dayAgg(query, current, pageSize);
       return CommonResponseDTO.page(page.getRecords(), page.getPages(), page.getTotal());
@@ -171,7 +174,7 @@ public class RumController {
      * 获取topN数据
      */
     @PostMapping("/getTopN")
-    public CommonResponseDTO<RumDailyTopNPo> getTopN(@RequestBody TopNQueryDTO query,@RequestParam Long current, @RequestParam Long pageSize) {
+    public CommonResponseDTO<RumDailyTopNPo> getTopN(@Valid @RequestBody TopNQueryDTO query, @RequestParam Long current, @RequestParam Long pageSize) {
         IPage<RumDailyTopNPo> page = topService.getTopN(query, current, pageSize);
         return CommonResponseDTO.page(page.getRecords(), page.getPages(), page.getTotal());
     }

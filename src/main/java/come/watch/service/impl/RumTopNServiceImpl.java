@@ -53,16 +53,19 @@ public class RumTopNServiceImpl implements RumTopNService {
 
         @Override
         public boolean equals(Object obj) {
-            return obj instanceof GroupKey &&
-                    ((GroupKey) obj).day.equals(day) &&
-                    ((GroupKey) obj).env.equals(env) &&
-                    ((GroupKey) obj).routeKey.equals(routeKey) &&
-                    ((GroupKey) obj).releaseVer.equals(releaseVer);
+            if (!(obj instanceof GroupKey)) {
+                return false;
+            }
+            GroupKey other = (GroupKey) obj;
+            return Objects.equals(other.day, day)
+                    && Objects.equals(other.env, env)
+                    && Objects.equals(other.routeKey, routeKey)
+                    && Objects.equals(other.releaseVer, releaseVer);
         }
 
         @Override
         public int hashCode() {
-            return day.hashCode() ^ env.hashCode() ^ routeKey.hashCode() ^ releaseVer.hashCode();
+            return Objects.hash(day, env, routeKey, releaseVer);
         }
     }
 

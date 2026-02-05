@@ -15,6 +15,9 @@ public class RumValidator {
      * @return 错误消息，null 表示校验通过
      */
     public static String validate(RumPo dto) {
+        if (dto == null) {
+            return "Invalid body";
+        }
         // metric 校验：只能是 1(LCP)/2(INP)/3(CL)
         boolean validMetric = Arrays.stream(Metric.values()).map(Metric::getCode).anyMatch(code -> code.equals(dto.getMetric()));
         if (dto.getMetric() == null || !validMetric) {
