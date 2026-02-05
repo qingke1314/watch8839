@@ -1,6 +1,7 @@
 package come.watch;
 
 import come.watch.common.RumDailyAggJob;
+import come.watch.common.RumDailyTopNJob;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -17,5 +18,10 @@ public class Main {
     @Bean
     public ApplicationRunner rumDailyAggOnceRunner(RumDailyAggJob rumDailyAggJob) {
         return args -> rumDailyAggJob.run();
+    }
+
+    @Bean
+    public ApplicationRunner rumDailyTopNOnceRunner(RumDailyTopNJob rumDailyTopNJob) {
+        return args -> rumDailyTopNJob.runDaily();
     }
 }

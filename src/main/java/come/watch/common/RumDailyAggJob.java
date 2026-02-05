@@ -57,7 +57,7 @@ public class RumDailyAggJob {
     @Scheduled(cron = "0 10 0 * * ?")
     public void run() {
         // 1) 统计窗口：昨天 00:00:00 ~ 今天 00:00:00 (左闭右开)
-        LocalDate day = LocalDate.now(); //.minusDays(1);
+        LocalDate day = LocalDate.now().minusDays(1);
         LocalDateTime start = day.atStartOfDay();
         LocalDateTime end = day.plusDays(1).atStartOfDay();
 

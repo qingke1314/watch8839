@@ -13,6 +13,7 @@ import come.watch.dto.response.OverviewDictDTO;
 import come.watch.mapper.RumDailyAggMapper;
 import come.watch.mapper.RumPoMapper;
 import come.watch.repository.RumDailyPo;
+import come.watch.repository.RumDailyTopNPo;
 import come.watch.repository.RumPo;
 import come.watch.service.RumService;
 import lombok.RequiredArgsConstructor;
@@ -167,6 +168,20 @@ public class RumServiceImpl extends ServiceImpl<RumPoMapper, RumPo> implements R
 
         return dict;
     }
+
+     @Override
+    public IPage<RumPo> getDetail(DayAggResponseDTO query) {
+        Page<RumPo> page = new Page<>(1, 1000); // 全量返回
+         return rumPoMapper.selectPageByParam(page, query);
+    }
+
+     @Override
+    public IPage<RumPo> getDetailByTopN(RumDailyTopNPo query) {
+        Page<RumPo> page = new Page<>(1, 1000); // 全量返回
+        return rumPoMapper.selectPageByTopNParam(page, query);
+    }
+
+
 
     public RumPo createMapperRumPo(RumPo dto, String userAgent, byte[] ipBytes) {
       RumPo entity = new RumPo();

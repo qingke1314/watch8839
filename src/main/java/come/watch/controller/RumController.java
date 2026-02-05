@@ -4,12 +4,16 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import come.watch.common.CommonResponseDTO;
 import come.watch.common.Metric;
+import come.watch.common.RumDailyTopNJob;
 import come.watch.common.RumValidator;
 import come.watch.dto.request.DayAggQueryDTO;
+import come.watch.dto.request.TopNQueryDTO;
 import come.watch.dto.response.DayAggResponseDTO;
 import come.watch.dto.response.OverviewDictDTO;
+import come.watch.repository.RumDailyTopNPo;
 import come.watch.repository.RumPo;
 import come.watch.service.RumService;
+import come.watch.service.RumTopNService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -39,6 +43,8 @@ public class RumController {
    * 负责数据入库、IP 解析、UA 解析等业务逻辑
    */
   private final RumService service;
+
+  private final RumTopNService topService;
 
 
   /**
@@ -142,4 +148,31 @@ public class RumController {
       OverviewDictDTO dict = service.getDict();
       return CommonResponseDTO.ok(dict);
   }
+
+    /**
+     * 根据某条日聚合数据检索匹配的明细数据
+     */
+    @PostMapping("/getDetail")
+    public CommonResponseDTO<RumPo> getDetail(@RequestBody DayAggResponseDTO query) {
+        IPage<RumPo> page = service.getDetail(query);
+        return CommonResponseDTO.page(page.getRecords(), page.getPages(), page.getTotal());
+    }
+
+    /**
+     * 根据某条topN数据查询明细数据
+     */
+     @PostMapping("/getDetailByTopN")
+    public CommonResponseDTO<RumPo> getDetailByTopN(@RequestBody RumDailyTopNPo query) {
+        IPage<RumPo> page = service.getDetailByTopN(query);
+        return CommonResponseDTO.page(page.getRecords(), page.getPages(), page.getTotal());
+    }
+
+    /**
+     * 获取topN数据
+     */
+    @PostMapping("/getTopN")
+    public CommonResponseDTO<RumDailyTopNPo> getTopN(@RequestBody TopNQueryDTO query,@RequestParam Long current, @RequestParam Long pageSize) {
+        IPage<RumDailyTopNPo> page = topService.getTopN(query, current, pageSize);
+        return CommonResponseDTO.page(page.getRecords(), page.getPages(), page.getTotal());
+    }
 }

@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="come.watch.mapper.RumPoMapper">
+
+    <select id="selectPageByParam" resultType="come.watch.repository.RumPo">
+        SELECT
+        *
+        FROM rum_event as r
+        <where>
+            r.deleted = 0
+            <if test="query.env != null and query.env != ''">
+                AND r.env = #{query.env}
+            </if>
+            <if test="query.metric != null and query.metric != ''">
+                AND r.metric = #{query.metric}
+            </if>
+            <if test="query.routeKey != null and query.routeKey != ''">
+                AND r.route_key = #{query.routeKey}
+            </if>
+            <if test="query.releaseVer != null and query.releaseVer != ''">
+                AND r.release_ver = #{query.releaseVer}
+            </if>
+            <if test="query.dimKey != null and query.dimKey != ''">
+                AND r.dim_key = #{query.dimKey}
+            </if>
+            <if test="query.day != null">
+                AND DATE(r.create_time) = #{query.day}
+            </if>
+        </where>
+        order by r.create_time
+    </select>
+
+    <select id="selectResourceSummaryEvents" resultType="come.watch.repository.RumPo">
+        SELECT *
+        FROM rum_event as r
+        <where>
+            r.deleted = 0
+            AND r.metric = #{metric}
+            AND r.create_time >= #{start}
+            AND r.create_time &lt; #{end}
+        </where>
+    </select>
+
+    <select id="selectPageByTopNParam" resultType="come.watch.repository.RumPo">
+        SELECT
+        *
+        FROM rum_event as r
+        <where>
+            r.deleted = 0
+            <if test="query.env != null and query.env != ''">
+                AND r.env = #{query.env}
+            </if>
+            <if test="query.routeKey != null and query.routeKey != ''">
+                AND r.route_key = #{query.routeKey}
+            </if>
+            <if test="query.releaseVer != null and query.releaseVer != ''">
+                AND r.release_ver = #{query.releaseVer}
+            </if>
+            <if test="query.day != null">
+                AND DATE(r.create_time) = #{query.day}
+            </if>
+        </where>
+        order by r.create_time
+    </select>
+</mapper>

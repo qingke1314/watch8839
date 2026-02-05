@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="come.watch.mapper.RumDailyTopNMapper">
+
+    <insert id="batchInsert">
+        INSERT INTO rum_daily_topn (
+            day,
+            route_key,
+            release_ver,
+            env,
+            kind,
+            rank_no,
+            item_key,
+            initiator,
+            host,
+            metric_max,
+            metric_avg,
+            occ_cnt,
+            sample_cnt,
+            ext
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+                #{item.day},
+                #{item.routeKey},
+                #{item.releaseVer},
+                #{item.env},
+                #{item.kind},
+                #{item.rankNo},
+                #{item.itemKey},
+                #{item.initiator},
+                #{item.host},
+                #{item.metricMax},
+                #{item.metricAvg},
+                #{item.occCnt},
+                #{item.sampleCnt},
+                #{item.ext, typeHandler=com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler}
+            )
+        </foreach>
+    </insert>
+
+    <select id="selectByParams" resultType="come.watch.repository.RumDailyTopNPo">
+        SELECT *
+        FROM rum_daily_topn as r
+        <where>
+            <if test="query.env != null and query.env != ''">
+                AND r.env = #{query.env}
+            </if>
+            <if test="query.metric != null and query.metric != ''">
+                AND r.metric = #{query.metric}
+            </if>
+            <if test="query.routeKey != null and query.routeKey != ''">
+                AND r.route_key = #{query.routeKey}
+            </if>
+            <if test="query.releaseVer != null and query.releaseVer != ''">
+                AND r.release_ver = #{query.releaseVer}
+            </if>
+            <if test="query.startDate != null">
+                AND r.day &gt;= #{query.startDate}
+            </if>
+            <if test="query.endDate != null">
+                AND r.day &lt;= #{query.endDate}
+            </if>
+            <if test="query.kind != null and query.kind != ''">
+                AND r.kind = #{query.kind}
+            </if>
+        </where>
+        order by r.day
+    </select>
+</mapper>

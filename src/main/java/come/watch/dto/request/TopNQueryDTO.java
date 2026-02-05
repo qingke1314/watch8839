@@ -8,12 +8,10 @@ import come.watch.common.validation.EnumValue;
 import lombok.Data;
 
 import javax.validation.constraints.AssertTrue;
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
 import java.time.LocalDate;
 
 @Data
-public class DayAggQueryDTO {
+public class TopNQueryDTO {
 
     @JsonFormat(pattern = "yyyy-MM-dd", timezone = "Asia/Beijing")
     private LocalDate startDate;
@@ -30,7 +28,7 @@ public class DayAggQueryDTO {
     @EnumValue(enumClass = UmiEnv.class, method = "getCode", message = "releaseVer非法")
     private String releaseVer;
 
-    private String goodRate;
+    private String kind;
 
     private String routeKey;
 

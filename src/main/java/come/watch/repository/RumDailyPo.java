@@ -92,4 +92,5 @@ public class RumDailyPo implements Serializable {
      * 维度键 metric为123时为空，为4时为apiKey，为567后面再看
      */
     private String dimKey;
+
 }

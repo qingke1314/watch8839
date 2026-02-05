@@ -10,16 +10,16 @@
         FROM rum_daily_agg as r
         <where>
             r.deleted = 0
-            <if test="agg.env != null">
+            <if test="agg.env != null and agg.env != ''">
                 AND r.env = #{agg.env}
             </if>
-            <if test="agg.metric != null">
+            <if test="agg.metric != null and agg.metric != ''">
                 AND r.metric = #{agg.metric}
             </if>
-            <if test="agg.routeKey != null">
+            <if test="agg.routeKey != null and agg.routeKey != ''">
                 AND r.route_key = #{agg.routeKey}
             </if>
-            <if test="agg.releaseVer != null">
+            <if test="agg.releaseVer != null and agg.releaseVer != ''">
                 AND r.release_ver = #{agg.releaseVer}
             </if>
             <if test="agg.startDate != null">
@@ -27,6 +27,12 @@
             </if>
             <if test="agg.endDate != null">
                 AND r.day &lt;= #{agg.endDate}
+            </if>
+            <if test="agg.goodRate == 1">
+                AND r.good_rate = 1
+            </if>
+            <if test="agg.goodRate == 0">
+                AND r.good_rate != 1
             </if>
         </where>
         order by r.day
